@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🏇 Sélection Cheval - Stay The Distance</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: white;
+      font-family: 'Arial Black', Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    h1 {
+      font-size: 2.5em;
+      color: #FFD700;
+      text-shadow: 3px 3px 0px #000;
+      margin-bottom: 10px;
+    }
+    .room-input {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    .room-input input {
+      font-size: 1.5em;
+      padding: 10px 20px;
+      text-align: center;
+      border: 3px solid #FFD700;
+      border-radius: 10px;
+      width: 150px;
+      font-weight: bold;
+      background: #0f3460;
+      color: white;
+    }
+    .status {
+      padding: 10px 20px;
+      background: rgba(0,0,0,0.5);
+      border-radius: 10px;
+      font-size: 0.9em;
+      margin-bottom: 20px;
+    }
+    .status.connected { color: #4CAF50; }
+    .status.error { color: #f44336; }
+    .horse-card {
+      background: rgba(0,0,0,0.7);
+      border: 4px solid #FFD700;
+      border-radius: 20px;
+      padding: 30px;
+      width: 100%;
+      max-width: 500px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    .horse-portrait {
+      width: 150px;
+      height: 150px;
+      border-radius: 50%;
+      margin: 0 auto 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 5em;
+      border: 5px solid white;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    }
+    .horse-name {
+      text-align: center;
+      font-size: 2em;
+      margin-bottom: 10px;
+      color: #FFD700;
+      text-shadow: 2px 2px 0px #000;
+    }
+    .odds {
+      text-align: center;
+      font-size: 1.3em;
+      color: #4CAF50;
+      margin-bottom: 20px;
+    }
+    .stats {
+      margin: 20px 0;
+    }
+    .stat {
+      margin: 15px 0;
+    }
+    .stat-label {
+      font-size: 1.1em;
+      margin-bottom: 5px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .stat-bar {
+      background: rgba(255,255,255,0.2);
+      border-radius: 10px;
+      height: 30px;
+      position: relative;
+      overflow: hidden;
+    }
+    .stat-fill {
+      height: 100%;
+      transition: width 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 1.1em;
+    }
+    .speed { background: linear-gradient(90deg, #FF6B6B, #FF4757); }
+    .stamina { background: linear-gradient(90deg, #4CAF50, #2ECC71); }
+    .jumping { background: linear-gradient(90deg, #3498DB, #2980B9); }
+    .form-text {
+      background: rgba(255,255,255,0.1);
+      padding: 15px;
+      border-radius: 10px;
+      margin: 20px 0;
+      font-size: 0.95em;
+      line-height: 1.5;
+      border-left: 4px solid #FFD700;
+    }
+    .controls {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    button {
+      flex: 1;
+      padding: 15px 20px;
+      font-size: 1.3em;
+      font-weight: bold;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.1s;
+      text-transform: uppercase;
+      font-family: 'Arial Black', Arial, sans-serif;
+    }
+    button:active {
+      transform: scale(0.95);
+    }
+    .btn-prev, .btn-next {
+      background: #e74c3c;
+      color: white;
+      flex: 0.3;
+    }
+    .btn-prev:hover, .btn-next:hover {
+      background: #c0392b;
+      box-shadow: 0 5px 15px rgba(231, 76, 60, 0.4);
+    }
+    .btn-select {
+      background: linear-gradient(135deg, #4CAF50, #45a049);
+      color: white;
+      flex: 1;
+    }
+    .btn-select:hover {
+      background: linear-gradient(135deg, #45a049, #3d8b40);
+      box-shadow: 0 5px 15px rgba(76, 175, 80, 0.4);
+    }
+    .btn-select:disabled {
+      background: #666;
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🏇 STAY THE DISTANCE</h1>
+    <div class="room-input">
+      <label for="roomCode">Code Room:</label>
+      <input type="text" id="roomCode" placeholder="1234" maxlength="4" value="">
+    </div>
+    <div id="status" class="status">En attente de connexion...</div>
+  </div>
+
+  <div class="horse-card">
+    <div id="horsePortrait" class="horse-portrait"></div>
+    <div id="horseName" class="horse-name"></div>
+    <div id="odds" class="odds"></div>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-label">⚡ VITESSE</div>
+        <div class="stat-bar">
+          <div id="speedBar" class="stat-fill speed"></div>
+        </div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">💪 ENDURANCE</div>
+        <div class="stat-bar">
+          <div id="staminaBar" class="stat-fill stamina"></div>
+        </div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">🦘 SAUT</div>
+        <div class="stat-bar">
+          <div id="jumpBar" class="stat-fill jumping"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="formText" class="form-text"></div>
+
+    <div class="controls">
+      <button class="btn-prev" onclick="prevHorse()">◀</button>
+      <button id="selectBtn" class="btn-select" onclick="selectHorse()">SÉLECTIONNER</button>
+      <button class="btn-next" onclick="nextHorse()">▶</button>
+    </div>
+  </div>
+
+  <script>
+    // Configuration WebSocket
+    const WS_URL = 'ws://91.99.56.243:3001';
+    let ws = null;
+    let isConnected = false;
+
+    // Chevaux disponibles
+    const horses = [
+      {
+        name: "PINGLETON",
+        speed: 70,
+        stamina: 85,
+        jumping: 60,
+        odds: "2-1",
+        form: "Le seul gris du plateau, il a une énergie débordante pour un vieux cheval et saute correctement. Espère faire mieux que son compagnon d'écurie Jummits.",
+        emoji: "🐴",
+        color: "#C0C0C0"
+      },
+      {
+        name: "THUNDERBOLT",
+        speed: 95,
+        stamina: 50,
+        jumping: 70,
+        odds: "3-1",
+        form: "Ultra rapide mais épuise son énergie rapidement. Stratégie risquée mais payante si bien géré.",
+        emoji: "⚡",
+        color: "#FFD700"
+      },
+      {
+        name: "STEADY EDDIE",
+        speed: 60,
+        stamina: 95,
+        jumping: 85,
+        odds: "5-2",
+        form: "L'endurance incarnée. Finira la course alors que les autres seront épuisés.",
+        emoji: "🏃",
+        color: "#4CAF50"
+      },
+      {
+        name: "LUCKY CHARM",
+        speed: 75,
+        stamina: 75,
+        jumping: 75,
+        odds: "4-1",
+        form: "Équilibré dans tous les domaines. Le choix sûr pour une première course.",
+        emoji: "🍀",
+        color: "#2ECC71"
+      },
+      {
+        name: "WILD SPIRIT",
+        speed: 85,
+        stamina: 70,
+        jumping: 55,
+        odds: "6-1",
+        form: "Imprévisible. Peut être brillant ou catastrophique selon les jours.",
+        emoji: "🔥",
+        color: "#FF4500"
+      },
+      {
+        name: "MOONWALKER",
+        speed: 65,
+        stamina: 80,
+        jumping: 90,
+        odds: "7-2",
+        form: "Le spécialiste du saut. Gagne un avantage significatif sur les obstacles.",
+        emoji: "🌙",
+        color: "#4169E1"
+      }
+    ];
+
+    let currentHorse = 0;
+
+    // Récupérer le room code depuis l'URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomFromUrl = urlParams.get('room');
+    if (roomFromUrl) {
+      document.getElementById('roomCode').value = roomFromUrl;
+    }
+
+    // Connexion WebSocket
+    function connectWebSocket() {
+      updateStatus('Connexion au serveur...', 'connecting');
+      
+      ws = new WebSocket(WS_URL);
+      
+      ws.onopen = () => {
+        isConnected = true;
+        updateStatus('✅ Connecté au serveur', 'connected');
+        console.log('✅ WebSocket connecté');
+      };
+      
+      ws.onclose = () => {
+        isConnected = false;
+        updateStatus('❌ Déconnecté du serveur', 'error');
+        console.log('❌ WebSocket déconnecté');
+        // Tentative de reconnexion après 3 secondes
+        setTimeout(connectWebSocket, 3000);
+      };
+      
+      ws.onerror = (error) => {
+        updateStatus('❌ Erreur de connexion', 'error');
+        console.error('❌ WebSocket error:', error);
+      };
+      
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log('📨 Message reçu:', data);
+          
+          if (data.type === 'room-joined') {
+            console.log('✅ Room rejointe:', data.roomCode);
+            // Redirection vers le controller
+            const playerId = data.playerId;
+            const roomCode = data.roomCode;
+            const horseData = encodeURIComponent(JSON.stringify(horses[currentHorse]));
+            window.location.href = `controller-game.html?room=${roomCode}&player=${playerId}&horse=${horseData}`;
+          }
+        } catch (e) {
+          console.error('Erreur parsing message:', e);
+        }
+      };
+    }
+
+    function updateStatus(message, type) {
+      const statusEl = document.getElementById('status');
+      statusEl.textContent = message;
+      statusEl.className = `status ${type}`;
+    }
+
+    function updateDisplay() {
+      const horse = horses[currentHorse];
+      document.getElementById('horseName').textContent = horse.name;
+      document.getElementById('speedBar').style.width = horse.speed + '%';
+      document.getElementById('speedBar').textContent = horse.speed;
+      document.getElementById('staminaBar').style.width = horse.stamina + '%';
+      document.getElementById('staminaBar').textContent = horse.stamina;
+      document.getElementById('jumpBar').style.width = horse.jumping + '%';
+      document.getElementById('jumpBar').textContent = horse.jumping;
+      document.getElementById('odds').textContent = 'Cote: ' + horse.odds;
+      document.getElementById('formText').textContent = horse.form;
+      document.getElementById('horsePortrait').textContent = horse.emoji;
+      document.getElementById('horsePortrait').style.background = horse.color;
+    }
+
+    function prevHorse() {
+      currentHorse = (currentHorse - 1 + horses.length) % horses.length;
+      updateDisplay();
+    }
+
+    function nextHorse() {
+      currentHorse = (currentHorse + 1) % horses.length;
+      updateDisplay();
+    }
+
+    function selectHorse() {
+      const roomCode = document.getElementById('roomCode').value.trim();
+      
+      if (roomCode.length !== 4) {
+        alert('❌ Entre un code de salle à 4 caractères');
+        return;
+      }
+      
+      if (!isConnected) {
+        alert('❌ Connexion au serveur en cours, réessaye dans quelques secondes');
+        return;
+      }
+
+      const selectedHorseData = horses[currentHorse];
+      const playerId = 'P' + Math.random().toString(36).substr(2, 5).toUpperCase();
+
+      // Désactiver le bouton
+      document.getElementById('selectBtn').disabled = true;
+      updateStatus('⏳ Rejoindre la room...', 'connecting');
+
+      console.log('📤 Envoi join-room:', { roomCode, playerId, horse: selectedHorseData.name });
+
+      // Envoyer l'info au serveur
+      ws.send(JSON.stringify({
+        type: 'join-room',
+        roomCode: roomCode,
+        playerId: playerId,
+        horse: selectedHorseData
+      }));
+
+      // Timeout au cas où
+      setTimeout(() => {
+        document.getElementById('selectBtn').disabled = false;
+        updateStatus('❌ Timeout - Réessaye', 'error');
+      }, 5000);
+    }
+
+    // Initialisation
+    updateDisplay();
+    connectWebSocket();
+  </script>
+</body>
+</html>

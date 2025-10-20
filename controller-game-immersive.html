@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>🏇 Controller - Stay The Distance</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #1a1a2e;
+      color: white;
+      font-family: 'Arial Black', Arial, sans-serif;
+      overflow: hidden;
+      touch-action: none;
+    }
+    
+    #gameCanvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      background: #87CEEB;
+    }
+    
+    /* HUD */
+    .hud {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      background: rgba(0,0,0,0.7);
+      border: 3px solid #FFD700;
+      border-radius: 10px;
+      padding: 10px;
+      pointer-events: none;
+      z-index: 100;
+    }
+    
+    .hud-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    
+    .hud-item {
+      font-size: 0.9em;
+    }
+    
+    .energy-bar {
+      height: 20px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-top: 5px;
+    }
+    
+    .energy-fill {
+      height: 100%;
+      transition: width 0.3s, background 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8em;
+      font-weight: bold;
+    }
+    
+    .energy-high { background: linear-gradient(90deg, #4CAF50, #2ECC71); }
+    .energy-medium { background: linear-gradient(90deg, #FFA500, #FF8C00); }
+    .energy-low { 
+      background: linear-gradient(90deg, #FF4500, #DC143C);
+      animation: blink 0.5s infinite;
+    }
+    
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    .pace-indicator {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+    }
+    
+    .pace-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.3);
+      border: 2px solid #FFD700;
+    }
+    
+    .pace-dot.active {
+      background: #FFD700;
+      box-shadow: 0 0 10px #FFD700;
+    }
+    
+    /* Contrôles */
+    .controls {
+      position: fixed;
+      bottom: 20px;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      padding: 0 20px;
+      pointer-events: all;
+      z-index: 100;
+    }
+    
+    .control-btn {
+      padding: 15px 25px;
+      border-radius: 10px;
+      background: rgba(255, 215, 0, 0.3);
+      border: 4px solid #FFD700;
+      color: white;
+      font-size: 1.2em;
+      font-weight: bold;
+      text-shadow: 2px 2px 4px black;
+      cursor: pointer;
+      user-select: none;
+      touch-action: none;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+      min-width: 70px;
+      text-align: center;
+    }
+    
+    .control-btn:active {
+      background: rgba(255, 215, 0, 0.6);
+      transform: scale(0.95);
+    }
+    
+    .control-btn.pressed {
+      background: rgba(255, 215, 0, 0.8);
+      transform: scale(0.9);
+    }
+    
+    .control-btn.cooldown {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .btn-jump {
+      background: rgba(52, 152, 219, 0.3);
+      border-color: #3498DB;
+    }
+    
+    .btn-jump:active {
+      background: rgba(52, 152, 219, 0.6);
+    }
+    
+    /* Messages */
+    .status-message {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.9);
+      padding: 20px 40px;
+      border-radius: 15px;
+      border: 3px solid #FFD700;
+      font-size: 1.5em;
+      text-align: center;
+      z-index: 200;
+    }
+    
+    .countdown {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 10em;
+      color: #FFD700;
+      text-shadow: 5px 5px 0px #000;
+      z-index: 200;
+      animation: pulse 0.5s ease-in-out;
+    }
+    
+    @keyframes pulse {
+      0% { transform: translate(-50%, -50%) scale(0); }
+      50% { transform: translate(-50%, -50%) scale(1.2); }
+      100% { transform: translate(-50%, -50%) scale(1); }
+    }
+    
+    .btn-ready {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 30px 60px;
+      font-size: 2em;
+      background: linear-gradient(135deg, #4CAF50, #45a049);
+      border: none;
+      border-radius: 15px;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      z-index: 200;
+    }
+    
+    .btn-ready:active {
+      transform: translate(-50%, -50%) scale(0.95);
+    }
+    
+    .btn-ready:disabled {
+      background: #666;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  
+  <!-- HUD -->
+  <div class="hud">
+    <div class="hud-row">
+      <div class="hud-item">💪 ENERGY</div>
+      <div class="hud-item">⚡ PACE: <span id="paceLevel">3</span>/5</div>
+    </div>
+    <div class="energy-bar">
+      <div id="energyFill" class="energy-fill energy-high" style="width: 100%;">100%</div>
+    </div>
+    <div class="hud-row" style="margin-top: 10px;">
+      <div class="hud-item">📍 <span id="position">1st</span> / <span id="totalPlayers">4</span></div>
+      <div class="hud-item">📏 <span id="distance">0</span>m / 2000m</div>
+    </div>
+  </div>
+  
+  <!-- Contrôles -->
+  <div class="controls" id="controls" style="display: none;">
+    <button id="btnLeft" class="control-btn">◀</button>
+    <button id="btnPaceMinus" class="control-btn">PACE -</button>
+    <button id="btnJump" class="control-btn btn-jump">🦘</button>
+    <button id="btnPacePlus" class="control-btn">PACE +</button>
+    <button id="btnRight" class="control-btn">▶</button>
+  </div>
+  
+  <!-- Messages -->
+  <div id="statusMessage" class="status-message" style="display: none;"></div>
+  <div id="countdown" class="countdown" style="display: none;"></div>
+  <button id="readyBtn" class="btn-ready" style="display: none;">✅ JE SUIS PRÊT</button>
+
+  <script>
+    // Configuration WebSocket
+    const WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const WS_HOST = window.location.host;
+    const WS_URL = `${WS_PROTOCOL}//${WS_HOST}`;
+    
+    // Paramètres URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomCode = urlParams.get('room');
+    const playerId = urlParams.get('player');
+    const horseData = JSON.parse(decodeURIComponent(urlParams.get('horse')));
+    
+    console.log('🏇 Controller démarré:', { roomCode, playerId, horse: horseData.name });
+    
+    // Canvas
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    
+    // Constantes de jeu
+    const TOTAL_DISTANCE = 2000;
+    const MAX_PACE = 5;
+    const JUMP_DURATION = 1000;
+    const JUMP_COOLDOWN = 2000;
+    
+    // État du jeu
+    let gameState = {
+      myDistance: 0,
+      myLateralPos: 0,        // -1.0 (gauche) à 1.0 (droite)
+      myPace: 3,              // 1 à 5
+      myEnergy: 100,
+      mySpeed: 0,
+      isJumping: false,
+      jumpStartTime: 0,
+      otherPlayers: new Map(),
+      obstacles: [],
+      feedbackMessages: [],
+      raceStarted: false,
+      raceFinished: false,
+      raceStartTime: 0
+    };
+    
+    // Contrôles
+    let controls = {
+      left: false,
+      right: false
+    };
+    
+    let cooldowns = {
+      jump: false
+    };
+    
+    // WebSocket
+    let ws = null;
+    
+    function connectWebSocket() {
+      ws = new WebSocket(WS_URL);
+      
+      ws.onopen = () => {
+        console.log('✅ WebSocket connecté');
+      };
+      
+      ws.onclose = () => {
+        console.log('❌ WebSocket déconnecté');
+        showStatus('❌ Connexion perdue');
+      };
+      
+      ws.onerror = (error) => {
+        console.error('❌ WebSocket error:', error);
+      };
+      
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        handleMessage(data);
+      };
+    }
+    
+    function handleMessage(data) {
+      switch (data.type) {
+        case 'room-joined':
+          showStatus('✅ Room rejointe');
+          break;
+          
+        case 'ready-enabled':
+          hideStatus();
+          document.getElementById('readyBtn').style.display = 'block';
+          break;
+          
+        case 'countdown':
+          document.getElementById('readyBtn').style.display = 'none';
+          showCountdown(data.count);
+          break;
+          
+        case 'race-start':
+          gameState.raceStarted = true;
+          gameState.raceStartTime = Date.now();
+          gameState.obstacles = data.obstacles || [];
+          console.log(`🌿 Reçu ${gameState.obstacles.length} haies`);
+          hideStatus();
+          document.getElementById('controls').style.display = 'flex';
+          break;
+          
+        case 'player-position':
+          if (data.playerId !== playerId) {
+            gameState.otherPlayers.set(data.playerId, {
+              distance: data.distance,
+              lateralPos: data.lateralPos || 0,
+              horse: data.horse,
+              pace: data.pace || 3,
+              energy: data.energy || 100
+            });
+          }
+          break;
+          
+        case 'player-finished':
+          console.log(`🏁 ${data.playerId} a terminé en position ${data.position}`);
+          break;
+          
+        case 'race-end':
+          console.log('🏆 Course terminée !', data.results);
+          gameState.raceFinished = true;
+          showFinalResults(data.results);
+          break;
+          
+        case 'race-reset':
+          console.log('🔄 Reset de la course');
+          window.location.reload();
+          break;
+      }
+    }
+    
+    function showStatus(msg) {
+      const el = document.getElementById('statusMessage');
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+    
+    function hideStatus() {
+      document.getElementById('statusMessage').style.display = 'none';
+    }
+    
+    function showCountdown(count) {
+      const el = document.getElementById('countdown');
+      el.textContent = count;
+      el.style.display = 'block';
+      el.style.animation = 'none';
+      setTimeout(() => el.style.animation = 'pulse 0.5s ease-in-out', 10);
+      
+      setTimeout(() => {
+        el.style.display = 'none';
+      }, 800);
+    }
+    
+    function showFinalResults(results) {
+      const myResult = results.find(r => r.playerId === playerId);
+      const message = myResult 
+        ? `🏁 ${myResult.position}${getOrdinalSuffix(myResult.position)} - Temps: ${myResult.time.toFixed(2)}s`
+        : '🏁 Course terminée !';
+      showStatus(message);
+    }
+    
+    function getOrdinalSuffix(n) {
+      if (n === 1) return 'er';
+      return 'e';
+    }
+    
+    function addFeedback(text, color = '#FFD700') {
+      gameState.feedbackMessages.push({
+        text: text,
+        color: color,
+        alpha: 1.0,
+        y: canvas.height / 2,
+        timestamp: Date.now()
+      });
+    }
+    
+    // Setup contrôles
+    const btnLeft = document.getElementById('btnLeft');
+    const btnRight = document.getElementById('btnRight');
+    const btnPacePlus = document.getElementById('btnPacePlus');
+    const btnPaceMinus = document.getElementById('btnPaceMinus');
+    const btnJump = document.getElementById('btnJump');
+    
+    // Gauche
+    ['touchstart', 'mousedown'].forEach(evt => {
+      btnLeft.addEventListener(evt, (e) => {
+        e.preventDefault();
+        controls.left = true;
+        btnLeft.classList.add('pressed');
+      });
+    });
+    
+    ['touchend', 'mouseup', 'touchcancel'].forEach(evt => {
+      btnLeft.addEventListener(evt, (e) => {
+        e.preventDefault();
+        controls.left = false;
+        btnLeft.classList.remove('pressed');
+      });
+    });
+    
+    // Droite
+    ['touchstart', 'mousedown'].forEach(evt => {
+      btnRight.addEventListener(evt, (e) => {
+        e.preventDefault();
+        controls.right = true;
+        btnRight.classList.add('pressed');
+      });
+    });
+    
+    ['touchend', 'mouseup', 'touchcancel'].forEach(evt => {
+      btnRight.addEventListener(evt, (e) => {
+        e.preventDefault();
+        controls.right = false;
+        btnRight.classList.remove('pressed');
+      });
+    });
+    
+    // PACE +
+    btnPacePlus.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (gameState.myPace < MAX_PACE) {
+        gameState.myPace++;
+        updateHUD();
+      }
+    });
+    
+    // PACE -
+    btnPaceMinus.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (gameState.myPace > 1) {
+        gameState.myPace--;
+        updateHUD();
+      }
+    });
+    
+    // Saut
+    btnJump.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (!cooldowns.jump && !gameState.isJumping && gameState.raceStarted) {
+        gameState.isJumping = true;
+        gameState.jumpStartTime = Date.now();
+        cooldowns.jump = true;
+        btnJump.classList.add('cooldown');
+        
+        setTimeout(() => {
+          cooldowns.jump = false;
+          btnJump.classList.remove('cooldown');
+        }, JUMP_COOLDOWN);
+      }
+    });
+    
+    // Bouton Prêt
+    document.getElementById('readyBtn').addEventListener('click', () => {
+      ws.send(JSON.stringify({
+        type: 'player-ready',
+        roomCode: roomCode,
+        playerId: playerId
+      }));
+      
+      document.getElementById('readyBtn').disabled = true;
+      document.getElementById('readyBtn').textContent = '⏳ EN ATTENTE...';
+    });
+    
+    // Support clavier
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+        controls.left = true;
+        btnLeft.classList.add('pressed');
+      }
+      if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+        controls.right = true;
+        btnRight.classList.add('pressed');
+      }
+      if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+        btnPacePlus.click();
+      }
+      if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
+        btnPaceMinus.click();
+      }
+      if (e.key === ' ' && !cooldowns.jump && !gameState.isJumping) {
+        e.preventDefault();
+        btnJump.click();
+      }
+    });
+    
+    window.addEventListener('keyup', (e) => {
+      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+        controls.left = false;
+        btnLeft.classList.remove('pressed');
+      }
+      if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+        controls.right = false;
+        btnRight.classList.remove('pressed');
+      }
+    });
+    
+    // Logique de jeu
+    function update(dt) {
+      // Mouvement latéral
+      const lateralSpeed = 2.0; // unités par seconde
+      if (controls.left) {
+        gameState.myLateralPos = Math.max(-1.0, gameState.myLateralPos - lateralSpeed * dt);
+      }
+      if (controls.right) {
+        gameState.myLateralPos = Math.min(1.0, gameState.myLateralPos + lateralSpeed * dt);
+      }
+      
+      // Calcul vitesse basée sur PACE et énergie
+      const paceRatio = gameState.myPace / MAX_PACE;
+      gameState.mySpeed = horseData.speed * paceRatio;
+      
+      // Si plus d'énergie, ralentissement forcé
+      if (gameState.myEnergy <= 0) {
+        gameState.mySpeed = horseData.speed * 0.2;
+        gameState.myPace = 1;
+      }
+      
+      // Consommation d'énergie (exponentielle selon PACE)
+      const baseConsumption = 100 / horseData.stamina;
+      const energyDrain = baseConsumption * Math.pow(paceRatio, 2) * dt;
+      gameState.myEnergy = Math.max(0, gameState.myEnergy - energyDrain);
+      
+      // Récupération lente si PACE < 3
+      if (gameState.myPace < 3 && gameState.myEnergy < 100) {
+        gameState.myEnergy = Math.min(100, gameState.myEnergy + 5 * dt);
+      }
+      
+      // Distance parcourue (km/h → m/s)
+      gameState.myDistance += gameState.mySpeed * dt * 0.277;
+      
+      // Gestion du saut
+      if (gameState.isJumping) {
+        const jumpElapsed = Date.now() - gameState.jumpStartTime;
+        if (jumpElapsed >= JUMP_DURATION) {
+          gameState.isJumping = false;
+        }
+      }
+      
+      // Collision avec haies
+      gameState.obstacles.forEach(obs => {
+        const distDiff = Math.abs(gameState.myDistance - obs.distance);
+        if (distDiff < 5 && !obs.hit) {
+          if (!gameState.isJumping) {
+            // COLLISION
+            gameState.mySpeed *= 0.7;
+            gameState.myEnergy = Math.max(0, gameState.myEnergy - 20);
+            addFeedback('💥 COLLISION !', '#FF0000');
+            obs.hit = true;
+          } else {
+            // SAUT RÉUSSI
+            addFeedback('✨ SAUT PARFAIT !', '#4CAF50');
+            obs.hit = true;
+          }
+        }
+      });
+      
+      // Fin de course
+      if (gameState.myDistance >= TOTAL_DISTANCE && !gameState.raceFinished) {
+        gameState.raceFinished = true;
+        const raceTime = (Date.now() - gameState.raceStartTime) / 1000;
+        
+        ws.send(JSON.stringify({
+          type: 'player-finished',
+          roomCode: roomCode,
+          playerId: playerId,
+          time: raceTime
+        }));
+      }
+      
+      // Mise à jour HUD
+      updateHUD();
+      
+      // Envoyer position au serveur (throttle à 10fps)
+      if (Date.now() % 100 < 16) {
+        sendPosition();
+      }
+    }
+    
+    function updateHUD() {
+      // Energy
+      const energyPercent = Math.round(gameState.myEnergy);
+      const energyFill = document.getElementById('energyFill');
+      energyFill.style.width = energyPercent + '%';
+      energyFill.textContent = energyPercent + '%';
+      
+      if (energyPercent > 50) {
+        energyFill.className = 'energy-fill energy-high';
+      } else if (energyPercent > 20) {
+        energyFill.className = 'energy-fill energy-medium';
+      } else {
+        energyFill.className = 'energy-fill energy-low';
+      }
+      
+      // PACE
+      document.getElementById('paceLevel').textContent = gameState.myPace;
+      
+      // Distance
+      document.getElementById('distance').textContent = Math.round(gameState.myDistance);
+      
+      // Position (calculée par rapport aux autres)
+      let position = 1;
+      gameState.otherPlayers.forEach(player => {
+        if (player.distance > gameState.myDistance) {
+          position++;
+        }
+      });
+      document.getElementById('position').textContent = position + getOrdinalSuffix(position);
+      document.getElementById('totalPlayers').textContent = gameState.otherPlayers.size + 1;
+    }
+    
+    function sendPosition() {
+      if (ws && ws.readyState === WebSocket.OPEN && gameState.raceStarted && !gameState.raceFinished) {
+        ws.send(JSON.stringify({
+          type: 'update-position',
+          roomCode: roomCode,
+          playerId: playerId,
+          distance: gameState.myDistance,
+          lateralPos: gameState.myLateralPos,
+          pace: gameState.myPace,
+          energy: gameState.myEnergy,
+          speed: gameState.mySpeed
+        }));
+      }
+    }
+    
+    // Rendu isométrique
+    function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Ciel
+      ctx.fillStyle = '#87CEEB';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Sol/Herbe
+      ctx.fillStyle = '#228B22';
+      ctx.fillRect(0, canvas.height * 0.4, canvas.width, canvas.height * 0.6);
+      
+      // Circuit ovale isométrique
+      drawTrack();
+      
+      // Haies
+      drawObstacles();
+      
+      // Autres chevaux
+      drawOtherPlayers();
+      
+      // Mon cheval (centré-bas)
+      drawMyHorse();
+      
+      // Messages feedback
+      drawFeedbackMessages();
+    }
+    
+    function drawTrack() {
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height * 0.7;
+      
+      // Circuit ovale paramétré
+      const trackWidth = 300;
+      const trackHeight = 150;
+      
+      // Rotation basée sur ma position
+      const myAngle = (gameState.myDistance / TOTAL_DISTANCE) * Math.PI * 2;
+      
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      ctx.rotate(-myAngle);
+      
+      // Piste principale
+      ctx.strokeStyle = '#8B4513';
+      ctx.lineWidth = 80;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, trackWidth, trackHeight, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Lignes intérieures/extérieures
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, trackWidth - 40, trackHeight - 40, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      ctx.beginPath();
+      ctx.ellipse(0, 0, trackWidth + 40, trackHeight + 40, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Ligne d'arrivée (position 0)
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(trackWidth, -20);
+      ctx.lineTo(trackWidth, 20);
+      ctx.stroke();
+      
+      ctx.restore();
+    }
+    
+    function drawObstacles() {
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height * 0.7;
+      const myAngle = (gameState.myDistance / TOTAL_DISTANCE) * Math.PI * 2;
+      
+      gameState.obstacles.forEach(obs => {
+        const obsAngle = (obs.distance / TOTAL_DISTANCE) * Math.PI * 2;
+        const relativeAngle = obsAngle - myAngle;
+        
+        // Si l'obstacle est dans le champ de vision
+        if (Math.abs(relativeAngle) < Math.PI) {
+          const trackWidth = 300;
+          const trackHeight = 150;
+          
+          const x = centerX + Math.cos(relativeAngle) * trackWidth;
+          const y = centerY + Math.sin(relativeAngle) * trackHeight * 0.5;
+          
+          // Distance pour scaling
+          const dist = Math.abs(relativeAngle);
+          const scale = Math.max(0.3, 1 - dist / Math.PI);
+          
+          ctx.save();
+          ctx.translate(x, y);
+          
+          // Haie
+          const w = 60 * scale;
+          const h = 30 * scale;
+          
+          ctx.fillStyle = '#2F4F2F';
+          ctx.fillRect(-w/2, -h, w, h);
+          
+          ctx.fillStyle = '#228B22';
+          ctx.fillRect(-w/2 + 5, -h + 5, w - 10, h - 10);
+          
+          ctx.restore();
+        }
+      });
+    }
+    
+    function drawOtherPlayers() {
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height * 0.7;
+      const myAngle = (gameState.myDistance / TOTAL_DISTANCE) * Math.PI * 2;
+      
+      gameState.otherPlayers.forEach(player => {
+        const playerAngle = (player.distance / TOTAL_DISTANCE) * Math.PI * 2;
+        const relativeAngle = playerAngle - myAngle;
+        
+        if (Math.abs(relativeAngle) < Math.PI) {
+          const trackWidth = 300 + (player.lateralPos * 30);
+          const trackHeight = 150;
+          
+          const x = centerX + Math.cos(relativeAngle) * trackWidth;
+          const y = centerY + Math.sin(relativeAngle) * trackHeight * 0.5;
+          
+          const dist = Math.abs(relativeAngle);
+          const scale = Math.max(0.3, 1 - dist / Math.PI);
+          const size = 40 * scale;
+          
+          ctx.font = `${size}px Arial`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(player.horse.emoji, x, y);
+        }
+      });
+    }
+    
+    function drawMyHorse() {
+      const x = canvas.width / 2 + (gameState.myLateralPos * 50);
+      const y = canvas.height - 100;
+      
+      // Ombre
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.beginPath();
+      ctx.ellipse(x, y + 40, 50, 15, 0, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Animation de galop
+      const bounce = gameState.isJumping 
+        ? Math.sin(((Date.now() - gameState.jumpStartTime) / JUMP_DURATION) * Math.PI) * 50
+        : Math.sin(Date.now() * 0.01) * 5;
+      
+      // Cheval
+      ctx.font = '80px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(horseData.emoji, x, y - bounce);
+      
+      // Indicateur saut
+      if (gameState.isJumping) {
+        ctx.font = 'bold 30px Arial';
+        ctx.fillStyle = '#FFD700';
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 3;
+        ctx.strokeText('🦘', x, y - bounce - 50);
+        ctx.fillText('🦘', x, y - bounce - 50);
+      }
+    }
+    
+    function drawFeedbackMessages() {
+      const now = Date.now();
+      
+      gameState.feedbackMessages = gameState.feedbackMessages.filter(msg => {
+        const age = now - msg.timestamp;
+        if (age > 2000) return false;
+        
+        msg.alpha = 1.0 - (age / 2000);
+        msg.y -= 1;
+        
+        ctx.save();
+        ctx.globalAlpha = msg.alpha;
+        ctx.font = 'bold 40px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 4;
+        ctx.strokeText(msg.text, canvas.width / 2, msg.y);
+        
+        ctx.fillStyle = msg.color;
+        ctx.fillText(msg.text, canvas.width / 2, msg.y);
+        
+        ctx.restore();
+        
+        return true;
+      });
+    }
+    
+    // Boucle de jeu
+    let lastTime = 0;
+    function gameLoop(timestamp) {
+      const deltaTime = (timestamp - lastTime) / 1000;
+      lastTime = timestamp;
+      
+      if (gameState.raceStarted && !gameState.raceFinished) {
+        update(deltaTime);
+      }
+      
+      render();
+      requestAnimationFrame(gameLoop);
+    }
+    
+    // Démarrage
+    connectWebSocket();
+    requestAnimationFrame(gameLoop);
+  </script>
+</body>
+</html>

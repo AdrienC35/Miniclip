@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🏇 Receiver - Stay The Distance</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: white;
+      font-family: 'Arial Black', Arial, sans-serif;
+      overflow: hidden;
+    }
+    
+    /* Mode Setup */
+    .setup-mode {
+      padding: 20px;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    
+    h1 {
+      font-size: 3em;
+      color: #FFD700;
+      text-shadow: 3px 3px 0px #000;
+    }
+    
+    .room-input {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: center;
+      margin: 20px 0;
+    }
+    
+    .room-input input {
+      font-size: 2em;
+      padding: 15px 30px;
+      text-align: center;
+      border: 5px solid #FFD700;
+      border-radius: 15px;
+      width: 200px;
+      font-weight: bold;
+      background: #0f3460;
+      color: white;
+    }
+    
+    .status {
+      text-align: center;
+      padding: 15px;
+      background: rgba(0,0,0,0.5);
+      border-radius: 10px;
+      font-size: 1.2em;
+      margin-bottom: 30px;
+    }
+    
+    .status.connected { color: #4CAF50; }
+    .status.error { color: #f44336; }
+    
+    .players {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    
+    .player {
+      background: rgba(0,0,0,0.7);
+      border: 3px solid #FFD700;
+      border-radius: 15px;
+      padding: 20px;
+      margin: 15px 0;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      animation: slideIn 0.5s;
+    }
+    
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(-50px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+    
+    .player-emoji {
+      font-size: 4em;
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 3px solid white;
+    }
+    
+    .player-info {
+      flex: 1;
+    }
+    
+    .player-name {
+      font-size: 2em;
+      color: #FFD700;
+      margin-bottom: 10px;
+    }
+    
+    .btn-start {
+      display: block;
+      margin: 40px auto;
+      padding: 30px 60px;
+      font-size: 2em;
+      background: linear-gradient(135deg, #4CAF50, #45a049);
+      color: white;
+      border: none;
+      border-radius: 20px;
+      cursor: pointer;
+      font-weight: bold;
+      text-transform: uppercase;
+      font-family: 'Arial Black', Arial, sans-serif;
+      box-shadow: 0 10px 30px rgba(76, 175, 80, 0.4);
+    }
+    
+    .btn-start:hover {
+      transform: scale(1.05);
+      box-shadow: 0 15px 40px rgba(76, 175, 80, 0.6);
+    }
+    
+    .btn-start:disabled {
+      background: #666;
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+    
+    .share-link {
+      background: rgba(76, 175, 80, 0.2);
+      padding: 15px;
+      border-radius: 10px;
+      margin: 20px auto;
+      max-width: 600px;
+      text-align: center;
+      border: 2px solid #4CAF50;
+    }
+    
+    .share-link input {
+      width: 100%;
+      padding: 10px;
+      font-size: 1.1em;
+      text-align: center;
+      background: rgba(0,0,0,0.5);
+      border: none;
+      border-radius: 5px;
+      color: white;
+      margin-top: 10px;
+    }
+    
+    /* Mode Course */
+    .race-mode {
+      display: none;
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+    
+    #raceCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: #2F4F2F;
+    }
+    
+    /* Leaderboard */
+    .leaderboard {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(0,0,0,0.8);
+      border: 3px solid #FFD700;
+      border-radius: 15px;
+      padding: 20px;
+      min-width: 300px;
+      z-index: 1000;
+    }
+    
+    .leaderboard h2 {
+      color: #FFD700;
+      margin-bottom: 15px;
+      text-align: center;
+      font-size: 1.8em;
+    }
+    
+    .leader-entry {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      padding: 10px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 8px;
+      margin: 8px 0;
+    }
+    
+    .leader-position {
+      font-size: 1.5em;
+      font-weight: bold;
+      color: #FFD700;
+      width: 40px;
+      text-align: center;
+    }
+    
+    .leader-emoji {
+      font-size: 2em;
+    }
+    
+    .leader-info {
+      flex: 1;
+    }
+    
+    .leader-name {
+      font-size: 1.2em;
+      color: white;
+    }
+    
+    .leader-distance {
+      font-size: 0.9em;
+      color: #aaa;
+    }
+    
+    /* Info race */
+    .race-info {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: rgba(0,0,0,0.8);
+      border: 3px solid #FFD700;
+      border-radius: 15px;
+      padding: 20px;
+      z-index: 1000;
+    }
+    
+    .race-info h3 {
+      color: #FFD700;
+      font-size: 1.5em;
+      margin-bottom: 10px;
+    }
+    
+    .race-stat {
+      font-size: 1.2em;
+      margin: 8px 0;
+    }
+    
+    .countdown {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 15em;
+      color: #FFD700;
+      text-shadow: 5px 5px 10px rgba(0,0,0,0.8);
+      z-index: 3000;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <!-- Mode Setup -->
+  <div id="setupMode" class="setup-mode">
+    <div class="header">
+      <h1>🏇 STAY THE DISTANCE</h1>
+      <h2>TV Receiver</h2>
+      
+      <div class="room-input">
+        <label for="roomCode">Code Room:</label>
+        <input type="text" id="roomCode" placeholder="1234" maxlength="4" value="">
+        <button onclick="joinRoom()" style="padding: 15px 30px; font-size: 1.5em; background: #4CAF50; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold;">CRÉER</button>
+      </div>
+      
+      <div id="status" class="status">En attente...</div>
+      
+      <div id="shareLink" class="share-link" style="display: none;">
+        <div>📱 Partage ce lien aux joueurs :</div>
+        <input type="text" id="shareUrl" readonly onclick="this.select()">
+      </div>
+    </div>
+    
+    <div id="playersList" class="players"></div>
+    
+    <button id="startBtn" class="btn-start" onclick="startRace()" style="display: none;" disabled>
+      🏁 DÉMARRER LA COURSE
+    </button>
+  </div>
+  
+  <!-- Mode Course -->
+  <div id="raceMode" class="race-mode">
+    <canvas id="raceCanvas"></canvas>
+    
+    <div class="race-info">
+      <h3>🏇 Course en direct</h3>
+      <div class="race-stat">📍 Distance: <span id="raceDistance">2000m</span></div>
+      <div class="race-stat">⏱️ Temps: <span id="raceTime">00:00</span></div>
+    </div>
+    
+    <div class="leaderboard">
+      <h2>🏆 CLASSEMENT</h2>
+      <div id="leaderboardList"></div>
+    </div>
+  </div>
+  
+  <div id="countdown" class="countdown" style="display: none;"></div>
+
+  <script>
+    // Configuration WebSocket - détection automatique du host
+    const WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const WS_HOST = window.location.host;
+    const WS_URL = `${WS_PROTOCOL}//${WS_HOST}`;
+    
+    let ws = null;
+    let isConnected = false;
+    let currentRoom = null;
+    let players = new Map();
+    let raceStartTime = 0;
+    let raceStarted = false;
+    let raceFinished = false;
+    let obstacles = [];
+    
+    // Canvas
+    const canvas = document.getElementById('raceCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    
+    // Circuit ovale
+    const TRACK = {
+      centerX: 0,
+      centerY: 0,
+      radiusX: 350,
+      radiusY: 250,
+      width: 120,
+      totalLength: 2000 // mètres
+    };
+    
+    function updateStatus(message, type) {
+      const statusEl = document.getElementById('status');
+      statusEl.textContent = message;
+      statusEl.className = `status ${type}`;
+    }
+    
+    function joinRoom() {
+      const roomCode = document.getElementById('roomCode').value.trim();
+      
+      if (roomCode.length !== 4) {
+        alert('❌ Entre un code de room à 4 caractères');
+        return;
+      }
+      
+      currentRoom = roomCode;
+      document.getElementById('roomCode').disabled = true;
+      
+      const shareUrl = `${window.location.protocol}//${window.location.host}/selection.html?room=${roomCode}`;
+      document.getElementById('shareUrl').value = shareUrl;
+      document.getElementById('shareLink').style.display = 'block';
+      
+      connectWebSocket();
+    }
+    
+    function connectWebSocket() {
+      updateStatus('Connexion au serveur...', 'connecting');
+      
+      ws = new WebSocket(WS_URL);
+      
+      ws.onopen = () => {
+        isConnected = true;
+        updateStatus(`✅ Room ${currentRoom} créée - En attente de joueurs...`, 'connected');
+        
+        ws.send(JSON.stringify({
+          type: 'join-room',
+          roomCode: currentRoom,
+          playerId: 'RECEIVER',
+          horse: { name: 'Receiver', emoji: '📺' }
+        }));
+      };
+      
+      ws.onclose = () => {
+        isConnected = false;
+        updateStatus('❌ Déconnecté du serveur', 'error');
+        setTimeout(connectWebSocket, 3000);
+      };
+      
+      ws.onerror = (error) => {
+        updateStatus('❌ Erreur de connexion', 'error');
+        console.error('❌ WebSocket error:', error);
+      };
+      
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log('📨 Message reçu:', data);
+          handleMessage(data);
+        } catch (e) {
+          console.error('❌ Erreur parsing:', e);
+        }
+      };
+    }
+    
+    function handleMessage(data) {
+      switch (data.type) {
+        case 'room-joined':
+          updateStatus(`✅ Room ${currentRoom} active`, 'connected');
+          break;
+          
+        case 'player-joined':
+          handlePlayerJoined(data);
+          break;
+          
+        case 'player-left':
+          handlePlayerLeft(data);
+          break;
+          
+        case 'player-ready':
+        case 'player-ready-status':
+          handlePlayerReady(data);
+          break;
+          
+        case 'countdown':
+          showCountdown(data.count);
+          break;
+          
+        case 'race-start':
+          obstacles = data.obstacles || [];
+          console.log(`🌿 Reçu ${obstacles.length} haies`);
+          switchToRaceMode();
+          break;
+          
+        case 'player-finished':
+          console.log(`🏁 ${data.playerId} termine en position ${data.position}`);
+          const player = players.get(data.playerId);
+          if (player) {
+            player.finished = true;
+            player.position = data.position;
+          }
+          break;
+          
+        case 'race-end':
+          console.log('🏆 Course terminée !', data.results);
+          raceFinished = true;
+          showRaceResults(data.results);
+          break;
+          
+        case 'race-reset':
+          console.log('🔄 Reset de la course');
+          resetRace();
+          break;
+          
+        case 'update-position':
+        case 'player-position':
+          updatePlayerPosition(data);
+          break;
+      }
+    }
+    
+    function handlePlayerJoined(data) {
+      if (data.playerId && data.horse && data.playerId !== 'RECEIVER') {
+        players.set(data.playerId, {
+          id: data.playerId,
+          horse: data.horse,
+          distance: 0,
+          x: 0,
+          z: 0,
+          speed: 0
+        });
+      }
+      
+      if (data.players && Array.isArray(data.players)) {
+        data.players.forEach(player => {
+          if (player.id !== 'RECEIVER') {
+            players.set(player.id, {
+              id: player.id,
+              horse: player.horse,
+              distance: 0,
+              x: 0,
+              z: 0,
+              speed: 0
+            });
+          }
+        });
+      }
+      
+      updatePlayersList();
+      updateStatus(`✅ ${players.size} joueur(s) connecté(s)`, 'connected');
+      
+      if (players.size > 0) {
+        document.getElementById('startBtn').style.display = 'block';
+        document.getElementById('startBtn').disabled = false;
+      }
+    }
+    
+    function handlePlayerLeft(data) {
+      players.delete(data.playerId);
+      updatePlayersList();
+      updateStatus(`👋 ${players.size} joueur(s) restant(s)`, 'connected');
+      
+      if (players.size === 0) {
+        document.getElementById('startBtn').style.display = 'none';
+      }
+    }
+    
+    function handlePlayerReady(data) {
+      const player = players.get(data.playerId);
+      if (player) {
+        player.ready = true;
+      }
+      
+      const readyCount = Array.from(players.values()).filter(p => p.ready).length;
+      updatePlayersList();
+      updateStatus(`✅ ${readyCount}/${players.size} joueur(s) prêt(s)`, 'connected');
+    }
+    
+    function updatePlayerPosition(data) {
+      if (data.playerId && data.playerId !== 'RECEIVER') {
+        const player = players.get(data.playerId);
+        if (player) {
+          player.distance = data.distance || data.z || 0;
+          player.x = data.x || 0;
+          player.z = data.z || 0;
+          player.speed = data.speed || 0;
+        }
+      }
+    }
+    
+    function showCountdown(count) {
+      const countdownEl = document.getElementById('countdown');
+      countdownEl.textContent = count;
+      countdownEl.style.display = 'block';
+      
+      setTimeout(() => {
+        countdownEl.style.display = 'none';
+      }, 1000);
+    }
+    
+    function startRace() {
+      if (!isConnected || players.size === 0) return;
+      
+      ws.send(JSON.stringify({
+        type: 'enable-ready',
+        roomCode: currentRoom
+      }));
+      
+      updateStatus('⏳ En attente...', 'connected');
+      document.getElementById('startBtn').disabled = true;
+      document.getElementById('startBtn').textContent = '⏳ EN ATTENTE...';
+    }
+    
+    function switchToRaceMode() {
+      document.getElementById('setupMode').style.display = 'none';
+      document.getElementById('raceMode').style.display = 'block';
+      raceStarted = true;
+      raceStartTime = Date.now();
+      
+      // Centrer le circuit
+      TRACK.centerX = canvas.width / 2;
+      TRACK.centerY = canvas.height / 2;
+      
+      requestAnimationFrame(renderRace);
+    }
+    
+    function showRaceResults(results) {
+      // Afficher le podium sur le canvas
+      const podiumHTML = `
+        <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+                    background: rgba(0,0,0,0.95); border: 5px solid #FFD700; border-radius: 20px;
+                    padding: 40px; text-align: center; z-index: 1000; min-width: 500px;">
+          <h2 style="font-size: 3em; color: #FFD700; margin-bottom: 30px;">🏆 RÉSULTATS</h2>
+          <div style="font-size: 1.5em; line-height: 2em;">
+            ${results.map((r, i) => `
+              <div style="margin: 15px 0; ${i < 3 ? 'font-size: 1.2em;' : ''}">
+                ${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i+1) + '.'}
+                <strong>${r.horse.emoji} ${r.horse.name}</strong>
+                - ${r.time.toFixed(2)}s
+              </div>
+            `).join('')}
+          </div>
+          <button id="newRaceBtn" style="margin-top: 30px; padding: 20px 40px; font-size: 1.5em;
+                                         background: linear-gradient(135deg, #4CAF50, #45a049);
+                                         border: none; border-radius: 10px; color: white; font-weight: bold;
+                                         cursor: pointer; box-shadow: 0 5px 15px rgba(0,0,0,0.3);">
+            🔄 NOUVELLE COURSE
+          </button>
+        </div>
+      `;
+      
+      document.body.insertAdjacentHTML('beforeend', podiumHTML);
+      
+      // Handler du bouton
+      document.getElementById('newRaceBtn').addEventListener('click', () => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({
+            type: 'reset-race',
+            roomCode: currentRoom
+          }));
+        }
+      });
+    }
+    
+    function resetRace() {
+      raceStarted = false;
+      raceFinished = false;
+      raceStartTime = 0;
+      obstacles = [];
+      
+      // Reset tous les joueurs
+      players.forEach(player => {
+        player.distance = 0;
+        player.x = 0;
+        player.z = 0;
+        player.speed = 0;
+        player.ready = false;
+        player.finished = false;
+        player.position = null;
+      });
+      
+      // Retour au mode setup
+      document.getElementById('raceMode').style.display = 'none';
+      document.getElementById('setupMode').style.display = 'block';
+      
+      // Supprimer le podium s'il existe
+      const podium = document.querySelector('[id*="newRaceBtn"]');
+      if (podium && podium.parentElement) {
+        podium.parentElement.remove();
+      }
+      
+      updatePlayersList();
+      document.getElementById('startBtn').style.display = 'block';
+    }
+    
+    function updatePlayersList() {
+      const listEl = document.getElementById('playersList');
+      listEl.innerHTML = '';
+      
+      players.forEach((player) => {
+        const playerEl = document.createElement('div');
+        playerEl.className = 'player';
+        playerEl.innerHTML = `
+          <div class="player-emoji" style="background: ${player.horse.color}">
+            ${player.horse.emoji}
+          </div>
+          <div class="player-info">
+            <div class="player-name">
+              ${player.horse.name}
+              ${player.ready ? '<span style="background: #4CAF50; color: white; padding: 5px 15px; border-radius: 5px; margin-left: 10px; font-size: 0.6em;">✅ PRÊT</span>' : ''}
+            </div>
+          </div>
+        `;
+        listEl.appendChild(playerEl);
+      });
+    }
+    
+    function renderRace() {
+      if (!raceStarted) return;
+      
+      // Clear
+      ctx.fillStyle = '#2F4F2F';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Dessiner herbe autour
+      ctx.fillStyle = '#228B22';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Dessiner piste ovale
+      drawTrack();
+      
+      // Dessiner joueurs
+      drawPlayers();
+      
+      // Mettre à jour leaderboard
+      updateLeaderboard();
+      
+      // Mettre à jour temps
+      updateRaceTime();
+      
+      requestAnimationFrame(renderRace);
+    }
+    
+    function drawTrack() {
+      // Piste extérieure (herbe foncée)
+      ctx.fillStyle = '#2F4F2F';
+      ctx.beginPath();
+      ctx.ellipse(
+        TRACK.centerX,
+        TRACK.centerY,
+        TRACK.radiusX + TRACK.width/2,
+        TRACK.radiusY + TRACK.width/2,
+        0, 0, Math.PI * 2
+      );
+      ctx.fill();
+      
+      // Piste (terre)
+      ctx.fillStyle = '#8B4513';
+      ctx.beginPath();
+      ctx.ellipse(
+        TRACK.centerX,
+        TRACK.centerY,
+        TRACK.radiusX,
+        TRACK.radiusY,
+        0, 0, Math.PI * 2
+      );
+      ctx.fill();
+      
+      // Piste intérieure (herbe)
+      ctx.fillStyle = '#228B22';
+      ctx.beginPath();
+      ctx.ellipse(
+        TRACK.centerX,
+        TRACK.centerY,
+        TRACK.radiusX - TRACK.width/2,
+        TRACK.radiusY - TRACK.width/2,
+        0, 0, Math.PI * 2
+      );
+      ctx.fill();
+      
+      // Lignes de lane
+      ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+      ctx.lineWidth = 2;
+      
+      for (let i = 1; i < 3; i++) {
+        const offset = (i * TRACK.width / 3) - TRACK.width/2;
+        ctx.beginPath();
+        ctx.ellipse(
+          TRACK.centerX,
+          TRACK.centerY,
+          TRACK.radiusX + offset,
+          TRACK.radiusY + offset,
+          0, 0, Math.PI * 2
+        );
+        ctx.stroke();
+      }
+      
+      // Ligne d'arrivée
+      ctx.fillStyle = '#FFD700';
+      ctx.fillRect(
+        TRACK.centerX + TRACK.radiusX - TRACK.width/2,
+        TRACK.centerY - 10,
+        TRACK.width,
+        20
+      );
+      
+      ctx.fillStyle = 'white';
+      ctx.font = 'bold 24px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(
+        '🏁 ARRIVÉE',
+        TRACK.centerX + TRACK.radiusX + 80,
+        TRACK.centerY + 8
+      );
+    }
+    
+    function drawPlayers() {
+      players.forEach((player) => {
+        // Calculer position sur circuit ovale
+        const progress = player.distance / TRACK.totalLength;
+        const angle = progress * Math.PI * 2; // Angle en radians
+        
+        // Position sur l'ellipse + offset latéral
+        const laneOffset = (player.x || 0) * (TRACK.width / 3);
+        const radius = TRACK.radiusX + laneOffset;
+        const radiusY = TRACK.radiusY + laneOffset;
+        
+        const x = TRACK.centerX + Math.cos(angle) * radius;
+        const y = TRACK.centerY + Math.sin(angle) * radiusY;
+        
+        // Dessiner ombre
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.beginPath();
+        ctx.ellipse(x, y + 5, 25, 10, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Dessiner cheval
+        ctx.font = '40px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        // Animation de galop
+        const bounce = Math.sin(Date.now() * 0.02 + player.id.charCodeAt(0)) * 3;
+        ctx.fillText(player.horse.emoji, x, y + bounce);
+        
+        // Nom du joueur
+        ctx.font = 'bold 14px Arial';
+        ctx.fillStyle = 'white';
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 3;
+        ctx.strokeText(player.horse.name, x, y - 35);
+        ctx.fillText(player.horse.name, x, y - 35);
+      });
+    }
+    
+    function updateLeaderboard() {
+      const sortedPlayers = Array.from(players.values())
+        .sort((a, b) => b.distance - a.distance);
+      
+      const listEl = document.getElementById('leaderboardList');
+      listEl.innerHTML = '';
+      
+      sortedPlayers.forEach((player, index) => {
+        const entryEl = document.createElement('div');
+        entryEl.className = 'leader-entry';
+        
+        const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '';
+        
+        entryEl.innerHTML = `
+          <div class="leader-position">${medal || (index + 1)}</div>
+          <div class="leader-emoji">${player.horse.emoji}</div>
+          <div class="leader-info">
+            <div class="leader-name">${player.horse.name}</div>
+            <div class="leader-distance">${Math.round(player.distance)}m / ${TRACK.totalLength}m</div>
+          </div>
+        `;
+        
+        listEl.appendChild(entryEl);
+      });
+    }
+    
+    function updateRaceTime() {
+      const elapsed = Date.now() - raceStartTime;
+      const seconds = Math.floor(elapsed / 1000);
+      const minutes = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      
+      document.getElementById('raceTime').textContent = 
+        `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+  </script>
+</body>
+</html>
